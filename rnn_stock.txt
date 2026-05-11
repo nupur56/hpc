@@ -1,0 +1,127 @@
+# Install TensorFlow
+!pip install tensorflow
+
+# Import Libraries
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from sklearn.preprocessing import MinMaxScaler
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, LSTM, Dropout
+
+# Load Dataset
+df = pd.read_csv(r'C:\Users\HP\Downloads\GOOG.csv')
+
+# Display Dataset
+print(df.head())
+print(df.tail())
+
+# Dataset Information
+print(df.info())
+
+# Check Missing Values
+print(df.isnull().sum())
+
+# Display Column Names
+print(df.columns)
+
+# Select Open Price Column
+X = df['Open'].values.reshape(-1,1)
+
+# Scale Data
+scaler = MinMaxScaler(feature_range=(0, 1))
+X_scaled = scaler.fit_transform(X)
+
+# Create Time Series Data
+X_train = []
+y_train = []
+
+for i in range(60, len(X_scaled)):
+    X_train.append(X_scaled[i-60:i, 0])
+    y_train.append(X_scaled[i, 0])
+
+# Convert to NumPy Arrays
+X_train = np.array(X_train)
+y_train = np.array(y_train)
+
+# Reshape Data for LSTM
+X_train = np.reshape(
+    X_train,
+    (X_train.shape[0], X_train.shape[1], 1)
+)
+
+# Build LSTM Model
+model = Sequential()
+
+# First LSTM Layer
+model.add(LSTM(
+    units=50,
+    return_sequences=True,
+    input_shape=(X_train.shape[1], 1)
+))
+
+model.add(Dropout(0.2))
+
+# Second LSTM Layer
+model.add(LSTM(
+    units=50,
+    return_sequences=True
+))
+
+model.add(Dropout(0.2))
+
+# Third LSTM Layer
+model.add(LSTM(units=50))
+
+model.add(Dropout(0.2))
+
+# Output Layer
+model.add(Dense(units=1))
+
+# Compile Model
+model.compile(
+    optimizer='adam',
+    loss='mean_squared_error'
+)
+
+# Train Model
+model.fit(
+    X_train,
+    y_train,
+    epochs=50,
+    batch_size=32
+)
+
+# Predict Stock Prices
+predicted_stock_price = model.predict(X_train)
+
+# Convert Back to Original Values
+predicted_stock_price = scaler.inverse_transform(
+    predicted_stock_price
+)
+
+# Plot Graph
+plt.figure(figsize=(12,6))
+
+# Real Stock Prices
+plt.plot(
+    X[60:60 + len(predicted_stock_price)],
+    color='red',
+    label='Real Google Stock Price'
+)
+
+# Predicted Stock Prices
+plt.plot(
+    predicted_stock_price,
+    color='blue',
+    label='Predicted Google Stock Price'
+)
+
+# Graph Labels
+plt.title('Google Stock Price Prediction using LSTM')
+plt.xlabel('Time (Days)')
+plt.ylabel('Stock Price')
+
+plt.legend()
+plt.show()

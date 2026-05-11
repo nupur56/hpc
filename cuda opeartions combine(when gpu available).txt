@@ -1,0 +1,178 @@
+%%writefile cuda_operations.cu
+
+#include <iostream>
+using namespace std;
+
+// ------------------------------------
+// Vector Addition Kernel
+// ------------------------------------
+__global__ void vectorAdd(int *a, int *b, int *c, int n)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (idx < n)
+    {
+        c[idx] = a[idx] + b[idx];
+    }
+}
+
+// ------------------------------------
+// Matrix Multiplication Kernel
+// ------------------------------------
+__global__ void matrixMultiply(int *a, int *b, int *c, int n)
+{
+    int row = threadIdx.y;
+    int col = threadIdx.x;
+
+    if (row < n && col < n)
+    {
+        int sum = 0;
+
+        for (int k = 0; k < n; k++)
+        {
+            sum += a[row * n + k] * b[k * n + col];
+        }
+
+        c[row * n + col] = sum;
+    }
+}
+
+int main()
+{
+    int choice;
+
+    cout << "CUDA Operations Menu\n";
+    cout << "1. Vector Addition\n";
+    cout << "2. Matrix Multiplication\n";
+    cout << "Enter your choice: ";
+    cin >> choice;
+
+    // =====================================================
+    // VECTOR ADDITION
+    // =====================================================
+    if (choice == 1)
+    {
+        int n;
+
+        cout << "\nEnter size of vectors: ";
+        cin >> n;
+
+        int size = n * sizeof(int);
+
+        int h_a[n], h_b[n], h_c[n];
+
+        int *d_a, *d_b, *d_c;
+
+        cout << "\nEnter elements of Vector A:\n";
+        for (int i = 0; i < n; i++)
+        {
+            cin >> h_a[i];
+        }
+
+        cout << "\nEnter elements of Vector B:\n";
+        for (int i = 0; i < n; i++)
+        {
+            cin >> h_b[i];
+        }
+
+        cudaMalloc((void**)&d_a, size);
+        cudaMalloc((void**)&d_b, size);
+        cudaMalloc((void**)&d_c, size);
+
+        cudaMemcpy(d_a, h_a, size, cudaMemcpyHostToDevice);
+        cudaMemcpy(d_b, h_b, size, cudaMemcpyHostToDevice);
+
+        vectorAdd<<<1, n>>>(d_a, d_b, d_c, n);
+
+        cudaMemcpy(h_c, d_c, size, cudaMemcpyDeviceToHost);
+
+        cout << "\nVector Addition Result:\n";
+
+        for (int i = 0; i < n; i++)
+        {
+            cout << h_a[i] << " + "
+                 << h_b[i] << " = "
+                 << h_c[i] << endl;
+        }
+
+        cudaFree(d_a);
+        cudaFree(d_b);
+        cudaFree(d_c);
+    }
+
+    // =====================================================
+    // MATRIX MULTIPLICATION
+    // =====================================================
+    else if (choice == 2)
+    {
+        int n;
+
+        cout << "\nEnter order of square matrix: ";
+        cin >> n;
+
+        int size = n * n * sizeof(int);
+
+        int h_a[n][n], h_b[n][n], h_c[n][n];
+
+        int *d_a, *d_b, *d_c;
+
+        cout << "\nEnter elements of Matrix A:\n";
+        for (int i = 0; i < n; i++)
+        {
+            for (int j = 0; j < n; j++)
+            {
+                cin >> h_a[i][j];
+            }
+        }
+
+        cout << "\nEnter elements of Matrix B:\n";
+        for (int i = 0; i < n; i++)
+        {
+            for (int j = 0; j < n; j++)
+            {
+                cin >> h_b[i][j];
+            }
+        }
+
+        cudaMalloc((void**)&d_a, size);
+        cudaMalloc((void**)&d_b, size);
+        cudaMalloc((void**)&d_c, size);
+
+        cudaMemcpy(d_a, h_a, size, cudaMemcpyHostToDevice);
+        cudaMemcpy(d_b, h_b, size, cudaMemcpyHostToDevice);
+
+        dim3 threadsPerBlock(n, n);
+
+        matrixMultiply<<<1, threadsPerBlock>>>(d_a, d_b, d_c, n);
+
+        cudaMemcpy(h_c, d_c, size, cudaMemcpyDeviceToHost);
+
+        cout << "\nMatrix Multiplication Result:\n";
+
+        for (int i = 0; i < n; i++)
+        {
+            for (int j = 0; j < n; j++)
+            {
+                cout << h_c[i][j] << " ";
+            }
+            cout << endl;
+        }
+
+        cudaFree(d_a);
+        cudaFree(d_b);
+        cudaFree(d_c);
+    }
+
+    else
+    {
+        cout << "\nInvalid Choice!\n";
+    }
+
+    return 0;
+}
+
+
+!nvcc cuda_operations.cu -o cuda_operations
+!./cuda_operations
+
+

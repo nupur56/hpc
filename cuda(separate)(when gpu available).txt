@@ -1,0 +1,203 @@
+%%writefile main.cu
+nvcc main.cu -o main
+./main
+
+
+adddition
+%%writefile vectorAdd.cu
+
+#include <iostream>
+using namespace std;
+
+__global__ void vectorAdd(int *a, int *b, int *c, int n)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (idx < n)
+    {
+        c[idx] = a[idx] + b[idx];
+    }
+}
+
+int main()
+{
+    int n;
+
+    cout << "Enter size of vectors: ";
+    cin >> n;
+
+    int size = n * sizeof(int);
+
+    int *h_a = new int[n];
+    int *h_b = new int[n];
+    int *h_c = new int[n];
+
+    int *d_a, *d_b, *d_c;
+
+    cout << "Enter Vector A:\n";
+    for(int i=0;i<n;i++)
+        cin >> h_a[i];
+
+    cout << "Enter Vector B:\n";
+    for(int i=0;i<n;i++)
+        cin >> h_b[i];
+
+    cudaMalloc((void**)&d_a, size);
+    cudaMalloc((void**)&d_b, size);
+    cudaMalloc((void**)&d_c, size);
+
+    cudaMemcpy(d_a, h_a, size, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_b, h_b, size, cudaMemcpyHostToDevice);
+
+    vectorAdd<<<1,n>>>(d_a,d_b,d_c,n);
+
+    cudaMemcpy(h_c, d_c, size, cudaMemcpyDeviceToHost);
+
+    cout << "\nResult:\n";
+
+    for(int i=0;i<n;i++)
+        cout << h_c[i] << " ";
+
+    cudaFree(d_a);
+    cudaFree(d_b);
+    cudaFree(d_c);
+
+    delete[] h_a;
+    delete[] h_b;
+    delete[] h_c;
+
+    return 0;
+}
+
+
+
+ulpliction
+#include <iostream>
+using namespace std;
+
+// =====================================
+// CUDA Matrix Multiplication Kernel
+// =====================================
+__global__ void matrixMultiply(int *a, int *b, int *c, int n)
+{
+    int row = threadIdx.y;
+    int col = threadIdx.x;
+
+    if (row < n && col < n)
+    {
+        int sum = 0;
+
+        for (int k = 0; k < n; k++)
+        {
+            sum += a[row * n + k] * b[k * n + col];
+        }
+
+        c[row * n + col] = sum;
+    }
+}
+
+int main()
+{
+    int n;
+
+    cout << "=== CUDA Matrix Multiplication ===" << endl;
+
+    cout << "\nEnter order of square matrix: ";
+    cin >> n;
+
+    int size = n * n * sizeof(int);
+
+    // Host matrices (CPU memory)
+    int *h_a = new int[n * n];
+    int *h_b = new int[n * n];
+    int *h_c = new int[n * n];
+
+    // Device matrices (GPU memory)
+    int *d_a, *d_b, *d_c;
+
+    // Input Matrix A
+    cout << "\nEnter elements of Matrix A:\n";
+
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            cin >> h_a[i * n + j];
+        }
+    }
+
+    // Input Matrix B
+    cout << "\nEnter elements of Matrix B:\n";
+
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            cin >> h_b[i * n + j];
+        }
+    }
+
+    // Allocate GPU memory
+    cudaMalloc((void**)&d_a, size);
+    cudaMalloc((void**)&d_b, size);
+    cudaMalloc((void**)&d_c, size);
+
+    // Copy CPU -> GPU
+    cudaMemcpy(d_a, h_a, size, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_b, h_b, size, cudaMemcpyHostToDevice);
+
+    // Create thread block
+    dim3 threadsPerBlock(n, n);
+
+    // Launch kernel
+    matrixMultiply<<<1, threadsPerBlock>>>(d_a, d_b, d_c, n);
+
+    // Copy GPU -> CPU
+    cudaMemcpy(h_c, d_c, size, cudaMemcpyDeviceToHost);
+
+    // Print Result
+    cout << "\nMatrix Multiplication Result:\n";
+
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            cout << h_c[i * n + j] << " ";
+        }
+
+        cout << endl;
+    }
+
+    // Free GPU memory
+    cudaFree(d_a);
+    cudaFree(d_b);
+    cudaFree(d_c);
+
+    // Free CPU memory
+    delete[] h_a;
+    delete[] h_b;
+    delete[] h_c;
+
+    return 0;
+}
+
+
+
+%%
+2
+
+1 2
+3 4
+
+5 6
+7 8
+
+output 
+Matrix Multiplication Result:
+
+19 22
+43 50
+
+
+!nvcc cuda_operations.cu -o cuda_operations
+!./cuda_operations
